@@ -13,6 +13,9 @@ class VulkanEngine
 	GLFWwindow* window;
 	VkInstance instance;
 	VkPhysicalDevice physicalDevice;
+	uint32_t queueFamilyIndex;
+	VkDevice device;
+	VkQueue graphicsQueue;
 	
 	public:
 	void PollEvents()
@@ -81,10 +84,85 @@ class VulkanEngine
 			cout<<"Device "<<i<<": robustBufferAccess: "<<deviceFeatures.robustBufferAccess<<endl;
 			cout<<"Device "<<i<<": geometryShader: "<<deviceFeatures.geometryShader<<endl;
 			cout<<"Device "<<i<<": tessellationShader: "<<deviceFeatures.tessellationShader<<endl;
+			
+			cout<<"trying to find Queue Families for Device "<<i<<" ..."<<endl;
+			uint32_t queueFamilyCount = 0;
+			vkGetPhysicalDeviceQueueFamilyProperties(devices[i], &queueFamilyCount, NULL);
+			cout<<"Device "<<i<<": Found "<<queueFamilyCount<<" queue Families!"<<endl;
+			
+			vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
+			vkGetPhysicalDeviceQueueFamilyProperties(devices[i], &queueFamilyCount, queueFamilies.data());
+			for(int f = 0; f < queueFamilyCount; f++)
+			{
+				cout<<"Device "<<i<<": queue Family "<<f<<": contains "<<queueFamilies[f].queueCount<<" queue"<<endl;
+				if(queueFamilies[f].queueFlags & VK_QUEUE_GRAPHICS_BIT)
+				{
+					cout<<"Device "<<i<<": queue Family "<<f<<": Graphics Bit true"<<endl;
+				}
+				else
+				{
+					cout<<"Device "<<i<<": queue Family "<<f<<": Graphics Bit false"<<endl;
+				}
+				if(queueFamilies[f].queueFlags & VK_QUEUE_COMPUTE_BIT)
+				{
+					cout<<"Device "<<i<<": queue Family "<<f<<": Compute Bit true"<<endl;
+				}
+				else
+				{
+					cout<<"Device "<<i<<": queue Family "<<f<<": Compute Bit false"<<endl;
+				}
+				if(queueFamilies[f].queueFlags & VK_QUEUE_TRANSFER_BIT)
+				{
+					cout<<"Device "<<i<<": queue Family "<<f<<": Transfer Bit true"<<endl;
+				}
+				else
+				{
+					cout<<"Device "<<i<<": queue Family "<<f<<": Transfer Bit false"<<endl;
+				}
+				if(queueFamilies[f].queueFlags & VK_QUEUE_SPARSE_BINDING_BIT)
+				{
+					cout<<"Device "<<i<<": queue Family "<<f<<": sparse binding Bit true"<<endl;
+				}
+				else
+				{
+					cout<<"Device "<<i<<": queue Family "<<f<<": sparse binding Bit false"<<endl;
+				}
+			}
+			cout<<"------------------------------------"<<endl;
 		}
 		cout<<"setting (main) physical device to device 0..."<<endl;
 		physicalDevice = devices[0]; //quick and dirty lol
+		queueFamilyIndex = 0;
 		cout<<"physical Device picked!"<<endl<<endl;
+	}
+	void CreateLogicalDevice()
+	{
+		cout<<"creating logical Device..."<<endl<<endl;
+		//QueueFamilyIndices indices = findQueueFamilies(physicalDevice);
+		VkDeviceQueueCreateInfo queueCreateInfo = {};
+		queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+		queueCreateInfo.queueFamilyIndex = queueFamilyIndex; //picking the 0th queue family
+		queueCreateInfo.queueCount = 1;
+		float queuePriority = 1.0;
+		queueCreateInfo.pQueuePriorities = &queuePriority;
+		
+		VkPhysicalDeviceFeatures deviceFeatures = {}; //alles VK_FALSE by default
+		
+		VkDeviceCreateInfo createInfo = {};
+		createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+		createInfo.pQueueCreateInfos = &queueCreateInfo;
+		createInfo.queueCreateInfoCount = 1;
+		createInfo.pEnabledFeatures = &deviceFeatures;
+		createInfo.enabledExtensionCount = 0;
+		
+		cout<<"calling vkCreateDevice..."<<endl;
+		vkCreateDevice(physicalDevice, &createInfo, NULL, &device);
+		cout<<"logical Device created!"<<endl;
+		
+		cout<<"trying to get graphics Queue..."<<endl;
+		vkGetDeviceQueue(device, queueFamilyIndex, 0, &graphicsQueue);
+		cout<<"Queue retrieved!"<<endl;
+		cout<<"logical Device creation finished!"<<endl<<endl;
 	}
 	void InitVulkan()
 	{
@@ -92,14 +170,21 @@ class VulkanEngine
 		InitWindow();
 		CreateInstance();
 		PickPhysicalDevice();
+		CreateLogicalDevice();
 		cout<<"Vulkan Initialized!"<<endl<<endl;
 	}
 	void DestroyVulkan()
 	{
-		cout<<"Destroying Vulkan..."<<endl;
+		cout<<"Destroying Vulkan(reversed order)..."<<endl;
+		
+		cout<<"Destroying Device..."<<endl;
+		vkDestroyDevice(device, NULL);
+		cout<<"Device destroyed!"<<endl;
+		
 		cout<<"Destroying Instance..."<<endl;
 		vkDestroyInstance(instance, NULL);
 		cout<<"Instance destroyed!"<<endl;
+		
 		cout<<"Vulkan destroyed!"<<endl<<endl;
 	}
 };
