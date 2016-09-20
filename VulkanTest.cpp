@@ -16,6 +16,8 @@ class VulkanEngine
 	uint32_t queueFamilyIndex;
 	VkDevice device;
 	VkQueue graphicsQueue;
+	VkQueue presentQueue;
+	VkSurfaceKHR surface;
 	
 	public:
 	void PollEvents()
@@ -127,17 +129,29 @@ class VulkanEngine
 				{
 					cout<<"Device "<<i<<": queue Family "<<f<<": sparse binding Bit false"<<endl;
 				}
+				
+				VkBool32 presentSupport = false;
+				vkGetPhysicalDeviceSurfaceSupportKHR(devices[i], f, surface, &presentSupport);
+				if(presentSupport)
+				{
+					cout<<"Device "<<i<<": queue Family "<<f<<": ===>supports presentation"<<endl;
+				}
+				else
+				{
+					cout<<"Device "<<i<<": queue Family "<<f<<": ===>does not support presentation"<<endl;
+				}
 			}
 			cout<<"------------------------------------"<<endl;
 		}
 		cout<<"setting (main) physical device to device 0..."<<endl;
 		physicalDevice = devices[0]; //quick and dirty lol
+		cout<<"setting (main) queue family device 0..."<<endl;
 		queueFamilyIndex = 0;
 		cout<<"physical Device picked!"<<endl<<endl;
 	}
 	void CreateLogicalDevice()
 	{
-		cout<<"creating logical Device..."<<endl<<endl;
+		cout<<"creating logical Device..."<<endl;
 		//QueueFamilyIndices indices = findQueueFamilies(physicalDevice);
 		VkDeviceQueueCreateInfo queueCreateInfo = {};
 		queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
@@ -162,7 +176,17 @@ class VulkanEngine
 		cout<<"trying to get graphics Queue..."<<endl;
 		vkGetDeviceQueue(device, queueFamilyIndex, 0, &graphicsQueue);
 		cout<<"Queue retrieved!"<<endl;
+		cout<<"trying to get presentation Queue..."<<endl;
+		vkGetDeviceQueue(device, queueFamilyIndex, 0, &presentQueue);
+		cout<<"Queue retrieved!"<<endl;
 		cout<<"logical Device creation finished!"<<endl<<endl;
+	}
+	void CreateSurface()
+	{
+		cout<<"Creating Surface..."<<endl;
+		cout<<"calling glfwCreateWindowSurface..."<<endl;
+		glfwCreateWindowSurface(instance, window, NULL, &surface);
+		cout<<"Surface creation done!"<<endl<<endl;
 	}
 	void InitVulkan()
 	{
@@ -171,11 +195,16 @@ class VulkanEngine
 		CreateInstance();
 		PickPhysicalDevice();
 		CreateLogicalDevice();
+		CreateSurface();
 		cout<<"Vulkan Initialized!"<<endl<<endl;
 	}
 	void DestroyVulkan()
 	{
 		cout<<"Destroying Vulkan(reversed order)..."<<endl;
+		
+		cout<<"Destroying Surface..."<<endl;
+		vkDestroySurfaceKHR(instance, surface, NULL);
+		cout<<"Surfface destroyed!"<<endl;
 		
 		cout<<"Destroying Device..."<<endl;
 		vkDestroyDevice(device, NULL);
