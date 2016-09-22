@@ -18,7 +18,8 @@ class VulkanEngine
 	VkQueue graphicsQueue;
 	VkQueue presentQueue;
 	VkSurfaceKHR surface;
-	
+	VkSemaphore ImageAvailibleSemaphore;
+	VkSemaphore RenderingFinishedSemaphore;	
 	public:
 	void PollEvents()
 	{
@@ -49,6 +50,10 @@ class VulkanEngine
 		const char** glfwExtensions;
 		cout<<"getting glfw Extensions..."<<endl;
 		glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
+		for(int i = 0; i < glfwExtensionCount; i++)
+		{
+			cout<<"Extension "<<i<<": "<<glfwExtensions[i]<<endl;
+		}
 		cout<<"got glfw Extensions!"<<endl;
 		
 		VkInstanceCreateInfo createInfo = {};
@@ -73,6 +78,16 @@ class VulkanEngine
 		vkEnumeratePhysicalDevices(instance, &deviceCount, devices.data());
 		for(int i = 0; i < deviceCount; i++)
 		{
+			uint32_t extensionCount = 0;
+			vkEnumerateDeviceExtensionProperties(devices[i], NULL, &extensionCount, NULL);
+			cout<<"found "<<extensionCount<<" availible Device Extensions"<<endl;
+			vector<VkExtensionProperties> deviceExtensions(extensionCount);
+			vkEnumerateDeviceExtensionProperties(devices[i], NULL, &extensionCount, deviceExtensions.data());
+			for(int f = 0; f < extensionCount; f++)
+			{
+				cout<<"Device "<<i<<": Extension: "<<f<<": "<<deviceExtensions[f].extensionName<<endl;
+			}
+			
 			VkPhysicalDeviceProperties deviceProperties;
 			vkGetPhysicalDeviceProperties(devices[i], &deviceProperties);
 			cout<<"Device "<<i<<": API Version: "<<deviceProperties.apiVersion<<endl;
@@ -130,16 +145,7 @@ class VulkanEngine
 					cout<<"Device "<<i<<": queue Family "<<f<<": sparse binding Bit false"<<endl;
 				}
 				
-				VkBool32 presentSupport = false;
-				vkGetPhysicalDeviceSurfaceSupportKHR(devices[i], f, surface, &presentSupport);
-				if(presentSupport)
-				{
-					cout<<"Device "<<i<<": queue Family "<<f<<": ===>supports presentation"<<endl;
-				}
-				else
-				{
-					cout<<"Device "<<i<<": queue Family "<<f<<": ===>does not support presentation"<<endl;
-				}
+				
 			}
 			cout<<"------------------------------------"<<endl;
 		}
@@ -168,6 +174,8 @@ class VulkanEngine
 		createInfo.queueCreateInfoCount = 1;
 		createInfo.pEnabledFeatures = &deviceFeatures;
 		createInfo.enabledExtensionCount = 0;
+		const char* ExtensionName = "VK_KHR_swapchain";
+		createInfo.ppEnabledExtensionNames = &ExtensionName;
 		
 		cout<<"calling vkCreateDevice..."<<endl;
 		vkCreateDevice(physicalDevice, &createInfo, NULL, &device);
@@ -186,7 +194,54 @@ class VulkanEngine
 		cout<<"Creating Surface..."<<endl;
 		cout<<"calling glfwCreateWindowSurface..."<<endl;
 		glfwCreateWindowSurface(instance, window, NULL, &surface);
-		cout<<"Surface creation done!"<<endl<<endl;
+		cout<<"Surface creation done!"<<endl;
+		VkBool32 presentSupport = false;
+		cout<<"listing Surface Features..."<<endl;
+		vkGetPhysicalDeviceSurfaceSupportKHR(physicalDevice, queueFamilyIndex, surface, &presentSupport);
+		if(presentSupport)
+		{
+			cout<<": ===>supports presentation"<<endl<<endl;
+		}
+		else
+		{
+			cout<<": ===>does not support presentation"<<endl<<endl;
+		}
+		
+		VkSurfaceCapabilitiesKHR surfaceCapabilities;
+		vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physicalDevice, surface, &surfaceCapabilities);
+		cout<<"Surface minImageCount = "<<surfaceCapabilities.minImageCount<<endl;
+		cout<<"Surface maxImageCount = "<<surfaceCapabilities.maxImageCount<<endl;
+		cout<<"Surface minImageWidth = "<<surfaceCapabilities.minImageExtent.width<<endl;
+		cout<<"Surface maxImageWidth = "<<surfaceCapabilities.maxImageExtent.width<<endl;
+		cout<<"Surface minImageHeight = "<<surfaceCapabilities.minImageExtent.height<<endl;
+		cout<<"Surface maxImageHeight = "<<surfaceCapabilities.maxImageExtent.height<<endl;
+		
+		uint32_t formatCount = 0;
+		vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice, surface, &formatCount, NULL);
+		vector<VkSurfaceFormatKHR> surfaceFormats(formatCount);
+		vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice, surface, &formatCount, surfaceFormats.data());
+		cout<<"Found "<<formatCount<<" Formats!"<<endl;
+		
+		uint32_t presentModeCount = 0;
+		vkGetPhysicalDeviceSurfacePresentModesKHR(physicalDevice, surface, &presentModeCount, NULL);
+		vector<VkPresentModeKHR> presentModes(presentModeCount);
+		vkGetPhysicalDeviceSurfacePresentModesKHR(physicalDevice, surface, &presentModeCount,presentModes.data());
+		cout<<"found "<<presentModeCount<<" present Modes!"<<endl;
+		
+		cout<<"Surface Creation done!"<<endl<<endl;
+	}
+	void CreateSemaphore()
+	{
+		cout<<"creating Semaphores..."<<endl;
+		VkSemaphoreCreateInfo semaphoreCreateInfo = {};
+		semaphoreCreateInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+		semaphoreCreateInfo.pNext = NULL;
+		semaphoreCreateInfo.flags = 0;
+		cout<<"calling vkCreateSemaphore(ImageAvailibleSemaphore)..."<<endl;
+		vkCreateSemaphore(device, &semaphoreCreateInfo, NULL, &ImageAvailibleSemaphore);
+		cout<<"calling vkCreateSemaphore(RenderingFinishedSemaphore)..."<<endl;
+		vkCreateSemaphore(device, &semaphoreCreateInfo, NULL, &RenderingFinishedSemaphore);
+		cout<<"Semaphore created!"<<endl<<endl;
 	}
 	void InitVulkan()
 	{
@@ -196,6 +251,7 @@ class VulkanEngine
 		PickPhysicalDevice();
 		CreateLogicalDevice();
 		CreateSurface();
+		CreateSemaphore();
 		cout<<"Vulkan Initialized!"<<endl<<endl;
 	}
 	void DestroyVulkan()
