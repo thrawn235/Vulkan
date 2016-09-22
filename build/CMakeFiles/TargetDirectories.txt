@@ -1,0 +1,5 @@
+/home/sebastian/Programming/C++/VulkanSDK/1.0.26.0/examples/build/CMakeFiles/vulkaninfo.dir
+/home/sebastian/Programming/C++/VulkanSDK/1.0.26.0/examples/build/CMakeFiles/edit_cache.dir
+/home/sebastian/Programming/C++/VulkanSDK/1.0.26.0/examples/build/CMakeFiles/tri.dir
+/home/sebastian/Programming/C++/VulkanSDK/1.0.26.0/examples/build/CMakeFiles/rebuild_cache.dir
+/home/sebastian/Programming/C++/VulkanSDK/1.0.26.0/examples/build/CMakeFiles/cube.dir

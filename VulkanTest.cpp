@@ -22,6 +22,7 @@ class VulkanEngine
 	VkSemaphore RenderingFinishedSemaphore;
 	
 	VkSurfaceFormatKHR format;
+	VkSwapchainKHR swapchain;
 	public:
 	void PollEvents()
 	{
@@ -326,26 +327,30 @@ class VulkanEngine
 	}
 	void CreateSwapChain()
 	{
-		/*VkSwapchainCreateInfoKHR swapChainCreateInfo = {};
+		cout<<"creating Swapchain..."<<endl;
+		VkSwapchainCreateInfoKHR swapChainCreateInfo = {};
 		swapChainCreateInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
-		swapChainCreateInfo.pNext = NULL:
+		swapChainCreateInfo.pNext = NULL;
 		swapChainCreateInfo.flags = 0;
 		swapChainCreateInfo.surface = surface;
 		swapChainCreateInfo.minImageCount = 3;
 		swapChainCreateInfo.imageFormat = format.format;
 		swapChainCreateInfo.imageColorSpace = format.colorSpace;
-		swapChainCreateInfo.imageExtend = { 640, 480 };
+		swapChainCreateInfo.imageExtent = { 640, 480 };
 		swapChainCreateInfo.imageArrayLayers = 1;
 		swapChainCreateInfo.imageUsage = 
 		swapChainCreateInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
-		swapChainCreateInfo.queueFamilyIndexCount =
-		swapChainCreateInfo.pQueueFamilyIndices =
-		swapChainCreateInfo.preTransform =
-		swapChainCreateInfo.compositeAlpha =
+		swapChainCreateInfo.queueFamilyIndexCount = 0;
+		swapChainCreateInfo.pQueueFamilyIndices = NULL;
+		swapChainCreateInfo.preTransform = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;
+		swapChainCreateInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
 		swapChainCreateInfo.presentMode = VK_PRESENT_MODE_IMMEDIATE_KHR;
-		swapChainCreateInfo.clipped =
-		swapChainCreateInfo.oldSwapChain =*/
+		swapChainCreateInfo.clipped = true;
+		swapChainCreateInfo.oldSwapchain = NULL;
 		
+		cout<<"calling VkCreateSwapchainKHR..."<<endl;
+		vkCreateSwapchainKHR(device, &swapChainCreateInfo, NULL, &swapchain);
+		cout<<"swapchain created!"<<endl<<endl;
 	}
 	void InitVulkan()
 	{
@@ -356,11 +361,16 @@ class VulkanEngine
 		CreateLogicalDevice();
 		CreateSurface();
 		CreateSemaphore();
+		CreateSwapChain();
 		cout<<"Vulkan Initialized!"<<endl<<endl;
 	}
 	void DestroyVulkan()
 	{
 		cout<<"Destroying Vulkan(reversed order)..."<<endl;
+		
+		cout<<"Destroying SwapChain..."<<endl;
+		vkDestroySwapchainKHR(device, swapchain, NULL);
+		cout<<"SwapChain destroyed!"<<endl;
 		
 		cout<<"Destroying Surface..."<<endl;
 		vkDestroySurfaceKHR(instance, surface, NULL);
