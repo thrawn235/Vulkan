@@ -20,9 +20,10 @@ class VulkanEngine
 	VkSurfaceKHR surface;
 	VkSemaphore ImageAvailibleSemaphore;
 	VkSemaphore RenderingFinishedSemaphore;
-	
 	VkSurfaceFormatKHR format;
 	VkSwapchainKHR swapchain;
+	vector<VkImage> swapChainImages;
+	
 	public:
 	void PollEvents()
 	{
@@ -350,6 +351,16 @@ class VulkanEngine
 		
 		cout<<"calling VkCreateSwapchainKHR..."<<endl;
 		vkCreateSwapchainKHR(device, &swapChainCreateInfo, NULL, &swapchain);
+		
+		cout<<"retrieving Images from Swapchain"<<endl;
+		
+		uint32_t imageCount = 0;
+		vkGetSwapchainImagesKHR(device, swapchain, &imageCount, NULL);
+		cout<<"retrieved "<<imageCount<<" images"<<endl;
+		swapChainImages.resize(imageCount);
+		vkGetSwapchainImagesKHR(device, swapchain, &imageCount, swapChainImages.data());
+		cout<<"Images retrieved!"<<endl;
+		
 		cout<<"swapchain created!"<<endl<<endl;
 	}
 	void InitVulkan()
