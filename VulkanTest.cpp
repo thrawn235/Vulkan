@@ -19,7 +19,9 @@ class VulkanEngine
 	VkQueue presentQueue;
 	VkSurfaceKHR surface;
 	VkSemaphore ImageAvailibleSemaphore;
-	VkSemaphore RenderingFinishedSemaphore;	
+	VkSemaphore RenderingFinishedSemaphore;
+	
+	VkSurfaceFormatKHR format;
 	public:
 	void PollEvents()
 	{
@@ -200,11 +202,11 @@ class VulkanEngine
 		vkGetPhysicalDeviceSurfaceSupportKHR(physicalDevice, queueFamilyIndex, surface, &presentSupport);
 		if(presentSupport)
 		{
-			cout<<": ===>supports presentation"<<endl<<endl;
+			cout<<"supports presentation"<<endl;
 		}
 		else
 		{
-			cout<<": ===>does not support presentation"<<endl<<endl;
+			cout<<"does not support presentation"<<endl;
 		}
 		
 		VkSurfaceCapabilitiesKHR surfaceCapabilities;
@@ -215,18 +217,97 @@ class VulkanEngine
 		cout<<"Surface maxImageWidth = "<<surfaceCapabilities.maxImageExtent.width<<endl;
 		cout<<"Surface minImageHeight = "<<surfaceCapabilities.minImageExtent.height<<endl;
 		cout<<"Surface maxImageHeight = "<<surfaceCapabilities.maxImageExtent.height<<endl;
+		cout<<"Surface maxImageArrayLayers = "<<surfaceCapabilities.maxImageArrayLayers<<endl;
 		
 		uint32_t formatCount = 0;
 		vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice, surface, &formatCount, NULL);
 		vector<VkSurfaceFormatKHR> surfaceFormats(formatCount);
 		vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice, surface, &formatCount, surfaceFormats.data());
 		cout<<"Found "<<formatCount<<" Formats!"<<endl;
+		for(int i = 0; i < formatCount; i++)
+		{
+			cout<<"Format "<<i<<": "<<surfaceFormats[i].format<<" ";
+			if(surfaceFormats[i].format == VK_FORMAT_UNDEFINED)
+			{
+				cout<<"VK_FORMAT_UNDEFINED"<<endl;
+			}
+			if(surfaceFormats[i].format == VK_FORMAT_R8G8B8A8_UNORM)
+			{
+				cout<<"VK_FORMAT_R8G8B8A8_UNORM"<<endl;
+			}
+			if(surfaceFormats[i].format == VK_COLORSPACE_SRGB_NONLINEAR_KHR)
+			{
+				cout<<"VK_COLORSPACE_SRGB_NONLINEAR_KHR"<<endl;
+			}
+			if(surfaceFormats[i].format == VK_FORMAT_R8G8B8A8_SRGB)
+			{
+				cout<<"VK_FORMAT_R8G8B8A8_SRGB"<<endl;
+			}
+			if(surfaceFormats[i].format == VK_FORMAT_R8G8B8A8_SINT)
+			{
+				cout<<"VK_FORMAT_R8G8B8A8_SINT"<<endl;
+			}
+			if(surfaceFormats[i].format == VK_FORMAT_R8G8B8A8_UINT)
+			{
+				cout<<"VK_FORMAT_R8G8B8A8_UINT"<<endl;
+			}
+			if(surfaceFormats[i].format == VK_FORMAT_B8G8R8A8_UNORM)
+			{
+				cout<<"VK_FORMAT_B8G8R8A8_UNORM"<<endl;
+			}
+			if(surfaceFormats[i].format == VK_FORMAT_B8G8R8A8_SNORM)
+			{
+				cout<<"VK_FORMAT_B8G8R8A8_SNORM"<<endl;
+			}
+			if(surfaceFormats[i].format == VK_FORMAT_B8G8R8A8_USCALED)
+			{
+				cout<<"VK_FORMAT_B8G8R8A8_USCALED"<<endl;
+			}
+			if(surfaceFormats[i].format == VK_FORMAT_B8G8R8A8_SSCALED)
+			{
+				cout<<"VK_FORMAT_B8G8R8A8_SSCALED"<<endl;
+			}
+			if(surfaceFormats[i].format == VK_FORMAT_B8G8R8A8_UINT)
+			{
+				cout<<"VK_FORMAT_B8G8R8A8_UINT"<<endl;
+			}
+			if(surfaceFormats[i].format == VK_FORMAT_B8G8R8A8_SINT)
+			{
+				cout<<"VK_FORMAT_B8G8R8A8_SINT"<<endl;
+			}
+			if(surfaceFormats[i].format == VK_FORMAT_B8G8R8A8_SRGB)
+			{
+				cout<<"VK_FORMAT_B8G8R8A8_SRGB"<<endl;
+			}
+		}
+		cout<<"selecting format (quick and dirty) 0"<<endl;
+		format = surfaceFormats[0];
 		
 		uint32_t presentModeCount = 0;
 		vkGetPhysicalDeviceSurfacePresentModesKHR(physicalDevice, surface, &presentModeCount, NULL);
 		vector<VkPresentModeKHR> presentModes(presentModeCount);
 		vkGetPhysicalDeviceSurfacePresentModesKHR(physicalDevice, surface, &presentModeCount,presentModes.data());
 		cout<<"found "<<presentModeCount<<" present Modes!"<<endl;
+		for(int i = 0; i < presentModeCount; i++)
+		{
+			cout<<"present Mode "<<i<<": ";
+			if(presentModes[i] == VK_PRESENT_MODE_IMMEDIATE_KHR)
+			{
+				cout<<"Immediate"<<endl;
+			}
+			if(presentModes[i] == VK_PRESENT_MODE_MAILBOX_KHR)
+			{
+				cout<<"Mailbox"<<endl;
+			}
+			if(presentModes[i] == VK_PRESENT_MODE_FIFO_KHR)
+			{
+				cout<<"FIFO"<<endl;
+			}
+			if(presentModes[i] == VK_PRESENT_MODE_FIFO_RELAXED_KHR)
+			{
+				cout<<"FIFO relaxed"<<endl;
+			}
+		}
 		
 		cout<<"Surface Creation done!"<<endl<<endl;
 	}
@@ -242,6 +323,29 @@ class VulkanEngine
 		cout<<"calling vkCreateSemaphore(RenderingFinishedSemaphore)..."<<endl;
 		vkCreateSemaphore(device, &semaphoreCreateInfo, NULL, &RenderingFinishedSemaphore);
 		cout<<"Semaphore created!"<<endl<<endl;
+	}
+	void CreateSwapChain()
+	{
+		/*VkSwapchainCreateInfoKHR swapChainCreateInfo = {};
+		swapChainCreateInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
+		swapChainCreateInfo.pNext = NULL:
+		swapChainCreateInfo.flags = 0;
+		swapChainCreateInfo.surface = surface;
+		swapChainCreateInfo.minImageCount = 3;
+		swapChainCreateInfo.imageFormat = format.format;
+		swapChainCreateInfo.imageColorSpace = format.colorSpace;
+		swapChainCreateInfo.imageExtend = { 640, 480 };
+		swapChainCreateInfo.imageArrayLayers = 1;
+		swapChainCreateInfo.imageUsage = 
+		swapChainCreateInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
+		swapChainCreateInfo.queueFamilyIndexCount =
+		swapChainCreateInfo.pQueueFamilyIndices =
+		swapChainCreateInfo.preTransform =
+		swapChainCreateInfo.compositeAlpha =
+		swapChainCreateInfo.presentMode = VK_PRESENT_MODE_IMMEDIATE_KHR;
+		swapChainCreateInfo.clipped =
+		swapChainCreateInfo.oldSwapChain =*/
+		
 	}
 	void InitVulkan()
 	{
