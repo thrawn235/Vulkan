@@ -1,11 +1,41 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include <fstream>
+#include <string>
 
 //#include <vulkan/vulkan.h>
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>	//includes <vulkan/vulkan.h> if GLFW_INCLUDE_VULKAN is defined
 using namespace std;
+
+vector<char> LoadBinaryFile(string filename)
+{
+	cout<<"trying to open "<<filename<<endl;
+	ifstream file(filename, ios::ate | ios::binary);
+	if(file.is_open())
+	{
+		cout<<"file opend..."<<endl;
+		cout<<"determin filesize..."<<endl;
+		size_t fileSize = (size_t) file.tellg();
+		cout<<"creating buffer..."<<endl;
+		std::vector<char> buffer(fileSize);
+		cout<<"back to start of file..."<<endl;
+		file.seekg(0);
+		cout<<"trying to read all the bytes at once"<<endl;
+		file.read(buffer.data(), fileSize);
+		cout<<"bytes read!"<<endl;
+		cout<<"closing filestream..."<<endl;
+		file.close();
+		cout<<"file closed!"<<endl;
+		return buffer;
+	}
+	else
+	{
+		cout<<"could not open file!"<<endl;
+	}
+	cout<<"done reading "<<filename<<endl;
+}
 
 class VulkanEngine
 {
@@ -23,6 +53,7 @@ class VulkanEngine
 	VkSurfaceFormatKHR format;
 	VkSwapchainKHR swapchain;
 	vector<VkImage> swapChainImages;
+	vector<VkImageView> swapChainImageViews;
 	
 	public:
 	void PollEvents()
@@ -363,6 +394,108 @@ class VulkanEngine
 		
 		cout<<"swapchain created!"<<endl<<endl;
 	}
+	void CreateImageViews()
+	{
+		cout<<"creating Image Views..."<<endl;
+		cout<<"found "<<swapChainImages.size()<<" swap chain images. Creating "<<swapChainImages.size()<<" Image Views"<<endl;
+		cout<<"resizing ImageViews vector..."<<endl;
+		swapChainImageViews.resize(swapChainImages.size());
+		for(int i = 0; i < swapChainImages.size(); i++)
+		{
+			cout<<"Creating "<<i<<". Image View"<<endl;
+			VkImageViewCreateInfo createInfo = {};
+			createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+			createInfo.image = swapChainImages[i];
+			createInfo.format = format.format;
+			createInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
+			createInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
+			createInfo.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
+			createInfo.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
+			createInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+			createInfo.subresourceRange.baseMipLevel = 0;
+			createInfo.subresourceRange.levelCount = 1;
+			createInfo.subresourceRange.baseArrayLayer = 0;
+			createInfo.subresourceRange.layerCount = 1;
+			cout<<"calling vkCreateImage view"<<endl;
+			vkCreateImageView(device, &createInfo, NULL, &swapChainImageViews[i]);
+		}
+		cout<<"image view creation done!"<<endl<<endl;
+	}
+	void CreateGraphicsPipeline()
+	{
+		cout<<"creating Graphics Pipeline..."<<endl;
+		cout<<"loading spv files..."<<endl;
+		vector<char> vertexShaderCode = LoadBinaryFile("./vert.spv");
+		vector<char> fragmentShaderCode = LoadBinaryFile("./frag.spv");
+		
+		cout<<"creating Shader Modules..."<<endl;
+		cout<<"creating Vertex Shader Module..."<<endl;
+		VkShaderModuleCreateInfo createInfo = {};
+		createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+		createInfo.codeSize = vertexShaderCode.size();
+		createInfo.pCode = (uint32_t*)vertexShaderCode.data();
+		cout<<"calling vkCreateShaderModule..."<<endl;
+		VkShaderModule VertexShaderModule;
+		vkCreateShaderModule(device, &createInfo, NULL, &VertexShaderModule);
+		
+		cout<<"creating Fragment Shader Module..."<<endl;
+		//VkShaderModuleCreateInfo createInfo = {};
+		createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+		createInfo.codeSize = fragmentShaderCode.size();
+		createInfo.pCode = (uint32_t*)fragmentShaderCode.data();
+		cout<<"calling vkCreateShaderModule..."<<endl;
+		VkShaderModule FragmentShaderModule;
+		vkCreateShaderModule(device, &createInfo, NULL, &FragmentShaderModule);
+		
+		cout<<"creating shader Stages"<<endl;
+		VkPipelineVertexInputStateCreateInfo vertexInputInfo = {};
+		vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+		vertexInputInfo.vertexBindingDescriptionCount = 0;
+		vertexInputInfo.pVertexBindingDescriptions = NULL;
+		vertexInputInfo.vertexAttributeDescriptionCount = 0;
+		vertexInputInfo.pVertexAttributeDescriptions = NULL;
+		
+		VkPipelineInputAssemblyStateCreateInfo inputAssemblyInfo = {};
+		inputAssemblyInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
+		inputAssemblyInfo.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+		inputAssemblyInfo.primitiveRestartEnable = false;
+		
+		VkViewport viewport = {};
+		viewport.x = 0;
+		viewport.y = 0;
+		viewport.width = 640;
+		viewport.height = 480;
+		viewport.minDepth = 0;
+		viewport.maxDepth = 1;
+		
+		VkRect2D scissor = {};
+		scissor.offset = {0,0};
+		scissor.extent = { 640, 480 };
+		
+		VkPipelineViewportStateCreateInfo viewportState = {};
+		viewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+		viewportState.viewportCount = 1;
+		viewportState.pViewports = &viewport;
+		viewportState.scissorCount = 1;
+		viewportState.pScissors = &scissor;
+		
+		VkPipelineShaderStageCreateInfo vertexShaderStageCreateInfo = {};
+		vertexShaderStageCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+		vertexShaderStageCreateInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
+		vertexShaderStageCreateInfo.module = VertexShaderModule;
+		vertexShaderStageCreateInfo.pName = "main";
+		vertexShaderStageCreateInfo.pSpecializationInfo = NULL;
+		
+		VkPipelineShaderStageCreateInfo fragmentShaderStageCreateInfo = {};
+		fragmentShaderStageCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+		fragmentShaderStageCreateInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+		fragmentShaderStageCreateInfo.module = FragmentShaderModule;
+		fragmentShaderStageCreateInfo.pName = "main";
+		fragmentShaderStageCreateInfo.pSpecializationInfo = NULL;
+		
+		
+		cout<<"done creating Graphics Pipeline!"<<endl<<endl;
+	}
 	void InitVulkan()
 	{
 		cout<<"Initializing Vulkan..."<<endl<<endl;
@@ -373,6 +506,8 @@ class VulkanEngine
 		CreateSurface();
 		CreateSemaphore();
 		CreateSwapChain();
+		CreateImageViews();
+		CreateGraphicsPipeline();
 		cout<<"Vulkan Initialized!"<<endl<<endl;
 	}
 	void DestroyVulkan()
