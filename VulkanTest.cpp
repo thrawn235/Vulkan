@@ -486,12 +486,34 @@ class VulkanEngine
 		vertexShaderStageCreateInfo.pName = "main";
 		vertexShaderStageCreateInfo.pSpecializationInfo = NULL;
 		
+		VkPipelineRasterizationStateCreateInfo rasterizerCreateInfo = {};
+		rasterizerCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
+		rasterizerCreateInfo.depthClampEnable = false;
+		rasterizerCreateInfo.rasterizerDiscardEnable = false;
+		rasterizerCreateInfo.polygonMode = VK_POLYGON_MODE_FILL;
+		rasterizerCreateInfo.lineWidth = 1;
+		rasterizerCreateInfo.cullMode = VK_CULL_MODE_BACK_BIT;
+		rasterizerCreateInfo.frontFace = VK_FRONT_FACE_CLOCKWISE;
+		rasterizerCreateInfo.depthBiasEnable = false;
+		rasterizerCreateInfo.depthBiasConstantFactor = 0;
+		rasterizerCreateInfo.depthBiasClamp = 0;
+		rasterizerCreateInfo.depthBiasSlopeFactor = 0;
+		
 		VkPipelineShaderStageCreateInfo fragmentShaderStageCreateInfo = {};
 		fragmentShaderStageCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
 		fragmentShaderStageCreateInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
 		fragmentShaderStageCreateInfo.module = FragmentShaderModule;
 		fragmentShaderStageCreateInfo.pName = "main";
 		fragmentShaderStageCreateInfo.pSpecializationInfo = NULL;
+		
+		VkPipelineMultisampleStateCreateInfo multisampling = {};
+		multisampling.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
+		multisampling.sampleShadingEnable = VK_FALSE;
+		multisampling.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+		multisampling.minSampleShading = 1.0f; // Optional
+		multisampling.pSampleMask = nullptr; // Optional
+		multisampling.alphaToCoverageEnable = VK_FALSE; // Optional
+		multisampling.alphaToOneEnable = VK_FALSE; // Optional
 		
 		
 		cout<<"done creating Graphics Pipeline!"<<endl<<endl;
