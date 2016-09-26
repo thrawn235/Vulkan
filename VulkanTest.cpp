@@ -56,6 +56,8 @@ class VulkanEngine
 	vector<VkImageView> swapChainImageViews;
 	VkRenderPass renderPass;
 	VkPipelineLayout pipelineLayout;
+	VkPipeline graphicsPipeline;
+	vector<VkFramebuffer> swapChainFramebuffers;
 	
 	public:
 	void PollEvents()
@@ -576,8 +578,55 @@ class VulkanEngine
 		pipelineLayoutCreateInfo.pPushConstantRanges = 0;
 		
 		vkCreatePipelineLayout(device, &pipelineLayoutCreateInfo, NULL, &pipelineLayout);
-
+		
+		CreateRenderPass();
+		
+		vector<VkPipelineShaderStageCreateInfo> stages = {vertexShaderStageCreateInfo, fragmentShaderStageCreateInfo};
+		VkGraphicsPipelineCreateInfo pipelineInfo = {};
+		pipelineInfo.sType =  VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+		pipelineInfo.stageCount = 2;
+		pipelineInfo.pStages = stages.data();
+		pipelineInfo.pVertexInputState = &vertexInputInfo;
+		pipelineInfo.pInputAssemblyState = &inputAssemblyInfo;
+		pipelineInfo.pViewportState = &viewportState;
+		pipelineInfo.pRasterizationState = &rasterizerCreateInfo;
+		pipelineInfo.pMultisampleState = &multisampling;
+		pipelineInfo.pDepthStencilState = NULL;
+		pipelineInfo.pColorBlendState = &colorBlending;
+		pipelineInfo.pDynamicState = NULL;
+		pipelineInfo.layout = pipelineLayout;
+		pipelineInfo.renderPass = renderPass;
+		pipelineInfo.subpass = 0;
+		pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
+		pipelineInfo.basePipelineIndex = -1;
+		
+		cout<<"calling vkCreateGraphicsPipeline..."<<endl;
+		vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &pipelineInfo, NULL, &graphicsPipeline);
+		
 		cout<<"done creating Graphics Pipeline!"<<endl<<endl;
+	}
+	void CreateFramebuffer()
+	{
+		cout<<"creating Framebuffer..."<<endl;
+		cout<<"resizing the swapChainFramebuffers vector"<<endl;
+		swapChainFramebuffers.resize(swapChainImageViews.size());
+		for(int i = 0; i < swapChainFramebuffers.size(); i++)
+		{
+			cout<<"creating Framebuffer "<<i<<endl;
+			VkImageView attachments[] = {swapChainImageViews[i]};
+			VkFramebufferCreateInfo framebufferInfo = {};
+			framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+			framebufferInfo.renderPass = renderPass;
+			framebufferInfo.attachmentCount = 1;
+			framebufferInfo.pAttachments = attachments;
+			framebufferInfo.width = 640;
+			framebufferInfo.height = 480;
+			framebufferInfo.layers = 1;
+			
+			cout<<"calling vkCreateFramebuffer..."<<endl;
+			vkCreateFramebuffer(device, &framebufferInfo, NULL, &swapChainFramebuffers[i]);
+		}
+		cout<<"Done creating Framebuffers!"<<endl<<endl;
 	}
 	void InitVulkan()
 	{
@@ -587,10 +636,11 @@ class VulkanEngine
 		PickPhysicalDevice();
 		CreateLogicalDevice();
 		CreateSurface();
-		CreateSemaphore();
+		//CreateSemaphore();
 		CreateSwapChain();
 		CreateImageViews();
 		CreateGraphicsPipeline();
+		CreateFramebuffer();
 		cout<<"Vulkan Initialized!"<<endl<<endl;
 	}
 	void DestroyVulkan()
