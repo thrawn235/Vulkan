@@ -690,6 +690,29 @@ class VulkanEngine
 		
 		cout<<"done creating Command Buffers!"<<endl<<endl;
 	}
+	void DrawFrame()
+	{
+		uint32_t imageIndex;
+		vkAcquireNextImageKHR(device, swapchain, 500000, ImageAvailibleSemaphore, VK_NULL_HANDLE, &imageIndex);
+		
+		VkSubmitInfo submitInfo = {};
+		submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+		
+		VkSemaphore waitSemaphores[] = {ImageAvailibleSemaphore};
+		VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
+		
+		submitInfo.waitSemaphoreCount = 1;
+		submitInfo.pWaitSemaphores = waitSemaphores;
+		submitInfo.pWaitDstStageMask = waitStages;
+		submitInfo.commandBufferCount = 1;
+		submitInfo.pCommandBuffers = &commandBuffers[imageIndex];
+		
+		VkSemaphore signalSemaphores[] = {RenderingFinishedSemaphore};
+		submitInfo.signalSemaphoreCount = 1;
+		submitInfo.pSignalSemaphores = signalSemaphores;
+		
+		vkQueueSubmit(graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE);
+	}
 	void InitVulkan()
 	{
 		cout<<"Initializing Vulkan..."<<endl<<endl;
@@ -698,7 +721,7 @@ class VulkanEngine
 		PickPhysicalDevice();
 		CreateLogicalDevice();
 		CreateSurface();
-		//CreateSemaphore();
+		CreateSemaphore();
 		CreateSwapChain();
 		CreateImageViews();
 		CreateGraphicsPipeline();
@@ -741,6 +764,7 @@ class cProgram
 		while(!Graphics.ShouldClose())
 		{
 			Graphics.PollEvents();
+			
 		}
 	}
 	
