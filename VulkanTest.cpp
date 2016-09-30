@@ -3,11 +3,18 @@
 #include <vector>
 #include <fstream>
 #include <string>
+#include <glm/glm.hpp>
 
 //#include <vulkan/vulkan.h>
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>	//includes <vulkan/vulkan.h> if GLFW_INCLUDE_VULKAN is defined
 using namespace std;
+
+struct vertex
+{
+	glm::vec2 pos;
+	glm::vec3 color;
+};
 
 vector<char> LoadBinaryFile(string filename)
 {
@@ -60,6 +67,7 @@ class VulkanEngine
 	vector<VkFramebuffer> swapChainFramebuffers;
 	VkCommandPool commandPool;
 	vector<VkCommandBuffer> commandBuffers;
+	uint32_t currentWorkingImage;
 	
 	public:
 	void PollEvents()
@@ -495,12 +503,29 @@ class VulkanEngine
 		vkCreateShaderModule(device, &createInfo, NULL, &FragmentShaderModule);
 		
 		cout<<"creating shader Stages"<<endl;
+		
+		VkVertexInputBindingDescription bindingDescription = {};
+		bindingDescription.binding = 0;
+		bindingDescription.stride = sizeof(vertex);
+		bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+		
+		vector<VkVertexInputAttributeDescription> attributeDescriptions(2);
+		attributeDescriptions[0].binding = 0;
+		attributeDescriptions[0].location = 0;
+		attributeDescriptions[0].format = VK_FORMAT_R32G32_SFLOAT;
+		attributeDescriptions[0].offset = offsetof(vertex, pos);
+		
+		attributeDescriptions[1].binding = 0;
+		attributeDescriptions[1].location = 1;
+		attributeDescriptions[1].format = VK_FORMAT_R32G32B32_SFLOAT;
+		attributeDescriptions[1].offset = offsetof(vertex, color);
+		
 		VkPipelineVertexInputStateCreateInfo vertexInputInfo = {};
 		vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-		vertexInputInfo.vertexBindingDescriptionCount = 0;
-		vertexInputInfo.pVertexBindingDescriptions = NULL;
-		vertexInputInfo.vertexAttributeDescriptionCount = 0;
-		vertexInputInfo.pVertexAttributeDescriptions = NULL;
+		vertexInputInfo.vertexBindingDescriptionCount = 1;
+		vertexInputInfo.pVertexBindingDescriptions = &bindingDescription;
+		vertexInputInfo.vertexAttributeDescriptionCount = 2;
+		vertexInputInfo.pVertexAttributeDescriptions = attributeDescriptions.data();
 		
 		VkPipelineInputAssemblyStateCreateInfo inputAssemblyInfo = {};
 		inputAssemblyInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
@@ -683,7 +708,7 @@ class VulkanEngine
 			renderPassInfo.framebuffer = swapChainFramebuffers[i];
 			renderPassInfo.renderArea.offset = {0,0};
 			renderPassInfo.renderArea.extent = { 640, 480 };
-			VkClearValue clearColor = {1.0f, 0.0f, 0.0f, 1.0f};
+			VkClearValue clearColor = {0.0f, 0.0f, 0.0f, 1.0f};
 			renderPassInfo.clearValueCount = 1;
 			renderPassInfo.pClearValues = &clearColor;
 			
@@ -738,6 +763,94 @@ class VulkanEngine
 		vkQueuePresentKHR(presentQueue, &presentInfo);
 		
 	}
+	void StartRendering()
+	{
+		
+		uint32_t imageIndex;
+		vkAcquireNextImageKHR(device, swapchain, 500000, ImageAvailibleSemaphore, VK_NULL_HANDLE, &imageIndex);
+		currentWorkingImage = imageIndex;
+		
+		/*commandBuffers.resize(swapChainFramebuffers.size());
+		
+		VkCommandBufferAllocateInfo allocInfo = {};
+		allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+		allocInfo.commandPool = commandPool;
+		allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+		allocInfo.commandBufferCount = commandBuffers.size();
+		
+		vkAllocateCommandBuffers(device, &allocInfo, commandBuffers.data());*/
+		
+		
+		VkCommandBufferBeginInfo beginInfo = {};
+		beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+		beginInfo.flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
+		beginInfo.pInheritanceInfo = NULL;
+		
+		vkBeginCommandBuffer(commandBuffers[currentWorkingImage], &beginInfo);
+		
+		VkRenderPassBeginInfo renderPassInfo = {};
+		renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+		renderPassInfo.renderPass = renderPass;
+		renderPassInfo.framebuffer = swapChainFramebuffers[currentWorkingImage];
+		renderPassInfo.renderArea.offset = {0,0};
+		renderPassInfo.renderArea.extent = { 640, 480 };
+		VkClearValue clearColor = {1.0f, 0.0f, 0.0f, 1.0f};
+		renderPassInfo.clearValueCount = 1;
+		renderPassInfo.pClearValues = &clearColor;
+		
+		vkCmdBeginRenderPass(commandBuffers[currentWorkingImage], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+		
+		vkCmdBindPipeline(commandBuffers[currentWorkingImage], VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
+			
+		
+	}
+	void Draw(int NumVertices)
+	{
+		
+		vkCmdDraw(commandBuffers[currentWorkingImage], NumVertices, NumVertices/3, 0, 0);
+		
+	}
+	void EndRendering()
+	{
+		
+		vkCmdEndRenderPass(commandBuffers[currentWorkingImage]);
+		
+		vkEndCommandBuffer(commandBuffers[currentWorkingImage]);
+		
+		
+		
+		
+		VkSubmitInfo submitInfo = {};
+		submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+		
+		VkSemaphore waitSemaphores[] = {ImageAvailibleSemaphore};
+		VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
+		
+		submitInfo.waitSemaphoreCount = 1;
+		submitInfo.pWaitSemaphores = waitSemaphores;
+		submitInfo.pWaitDstStageMask = waitStages;
+		submitInfo.commandBufferCount = 1;
+		submitInfo.pCommandBuffers = &commandBuffers[currentWorkingImage];
+		
+		VkSemaphore signalSemaphores[] = {RenderingFinishedSemaphore};
+		submitInfo.signalSemaphoreCount = 1;
+		submitInfo.pSignalSemaphores = signalSemaphores;
+		
+		vkQueueSubmit(graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE);
+		
+		VkPresentInfoKHR presentInfo = {};
+		presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+		presentInfo.waitSemaphoreCount = 1;
+		presentInfo.pWaitSemaphores = signalSemaphores;
+		
+		VkSwapchainKHR swapChains[] = {swapchain};
+		presentInfo.swapchainCount = 1;
+		presentInfo.pSwapchains = swapChains;
+		presentInfo.pImageIndices = &currentWorkingImage;
+		presentInfo.pResults = NULL;
+		
+		vkQueuePresentKHR(presentQueue, &presentInfo);
+	}
 	void InitVulkan()
 	{
 		cout<<"Initializing Vulkan..."<<endl<<endl;
@@ -784,16 +897,26 @@ class cProgram
 	protected:
 	VulkanEngine Graphics;
 	
+	vector<vertex> vertices;
+	
 	void MainLoop()
 	{
 		while(!Graphics.ShouldClose())
 		{
 			Graphics.PollEvents();
-			Graphics.DrawFrame();
+			Graphics.StartRendering();
+			Graphics.Draw(3);
+			Graphics.EndRendering();
 		}
 	}
 	
 	public:
+	cProgram()
+	{
+		vertices = {	{{0,-0.5},{1,0,0}},
+						{{0.5,0.5},{0,1,0}},
+						{{-0.5,0.5},{0,0,1}}	};
+	}
 	void Run()
 	{
 		Graphics.InitVulkan();
